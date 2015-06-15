@@ -40,7 +40,7 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
    * @param string $mode Parser mode
    */
   public function connectTo($mode) {
-    $this->Lexer->addSpecialPattern('\{\{src\}\}', $mode, 'plugin_src');
+    $this->Lexer->addSpecialPattern('\{\{src.+?\}\}', $mode, 'plugin_src');
 //        $this->Lexer->addEntryPattern('<FIXME>',$mode,'plugin_src');
   }
 
@@ -58,9 +58,24 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
    * @return array Data for the renderer
    */
   public function handle($match, $state, $pos, Doku_Handler &$handler) {
-    $data = array();
-
-    return $data;
+    $match = (preg_replace("/\s+/", " ", substr($match, 5, -2))); // Чистим от повторяющихся пробелов
+    $t = explode(' -', $match); //бьём строку параметров на отдельные
+    foreach ($t as $key => $value) {
+      if (!empty($value)) {
+        $k = explode(' ', $value);  //если параметр есть, разбить на праметр-значение через пробел
+        $tempData[$k['0']] = trim($k['1']);
+        $data[$k['0']] = trim($k['1']);
+      }
+    }
+    if (isset($tempData['p'])) {
+      $tempArray = explode(':', $tempData['p']);
+      $data['start'] = $tempArray[0];
+      $data['end'] = $tempArray[1];
+      unset($data['p']);
+      unset($tempData);
+      unset($tempArray);
+    }
+   return $data;
   }
 
   /**
@@ -72,19 +87,29 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
    * @return bool If rendering was successful.
    */
   public function render($mode, Doku_Renderer $renderer, $data) {
-    $lang = 'sh';
-    $fileName = '/usr/local/www/apache24/data/wiki/lib/plugins/addnewpage/syntax.php';
-    //$ok = true;
-    //$end = 10;
-    //$start = 0;
+    global $INFO;
+    global $conf;
+
+    $namespaceTypecasted = $this->_mb_str_replace(':', '/', $INFO['namespace']); //относительный путь в пространстве имён
+    $file = $this->_wikiPathFileToAbsolute($data['f'], $namespaceTypecasted, $conf['mediadir']);
+    $fileName = pathinfo($file, PATHINFO_BASENAME);
 
     if ($mode != 'xhtml') {
       return false;
     }
 
+    $code = $this->_assembling($this->_fetchFile($file, $data['start'], $data['end']));
 
-    //var_dump($this->_fetchFile($fileName));
-    $code = $this->_assembling($this->_fetchFile($fileName));
+    if (empty($data['l'])) {
+      $lang = pathinfo($file, PATHINFO_EXTENSION); //синтаксис по расширению
+    }
+    else {
+      $lang = $data['l'];
+    }
+
+    if (!empty($data['e'])) {
+      $code = mb_convert_encoding($code, "utf-8", $data['e']); //применяем перекодировку
+    }
 
     // highlighting by Geshi
     $geshi = new GeSHi($code, $lang, DOKU_INC . 'inc/geshi');
@@ -93,34 +118,41 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
     $geshi->set_header_type(GESHI_HEADER_PRE);
     $geshi->set_link_target($conf['target']['extern']);
     // when you like to use your own wrapper, remove GeSHi's wrapper element
-// we need to use a GeSHi wrapper to avoid <BR> throughout the highlighted text
+    // we need to use a GeSHi wrapper to avoid <BR> throughout the highlighted text
     $code = trim(preg_replace('!^<pre[^>]*>|</pre>$!', '', $geshi->parse_code()), "\n\r");
-    $code = mb_str_replace("&nbsp;\n", "", $code);
-
-
-
-    $renderer->doc .= 'test';
-    //$renderer->doc .= '<dl class="code">';
-    $renderer->doc .= '<dt><a href="/wiki/_media/freebsd/network/ipfw/antiddos2.sh" title="Download Snippet" class="mediafile mf_php">1.php</a></dt>';
+    $code = $this->_mb_str_replace("&nbsp;\n", "", $code);
+    //var_dump($data);
+    $renderer->doc .= '<dt><a href=' . $link . ' title="Download bg" class="mediafile mf_' . $lang . '">' . $fileName . '</a></dt>';
     $renderer->doc .= '<dt>';
-    $renderer->doc .= '<pre class="code php">';
-    //$renderer->doc .= '<span class="code php">';
+    $renderer->doc .= '<pre class="code">';
     $renderer->doc .= $code;
     $renderer->doc .= '</pre>';
     $renderer->doc .= '</dt>';
-    //$renderer->doc .= '</span>';
-    //$renderer->doc .= '</dl>';
-  //  $renderer->doc .= $this->_render_link($filename, $filepath, $result['basedir'], $result['webdir'], $params, $renderer);
-    
-
-
-
 
     return true;
   }
 
-  function _fetchFile($fileName) {
-    return file($fileName);
+  function _fetchFile($fileName, $start = 0, $end = 0) {
+    $content = file($fileName);
+    if ($end != 0) {
+      for ($i = 0; $i < $end + 1; $i++) {
+        $content2[] = $content[$i];
+      }
+    }
+    else {
+      $content2 = $content;
+    }
+    unset($content);
+    if ($start != 0) {
+      for ($i = $start; $i < sizeof($content2); $i++) {
+        $content3[] = $content2[$i];
+      }
+    }
+    else {
+      $content3 = $content2;
+    }
+    unset($content2);
+    return $content3;
   }
 
   /**
@@ -140,61 +172,72 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
     return $this->txtContent;
   }
 
+  /**
+   * Аналог str_replace для мультибайтных строк
+   * @param string $needle Вхождение
+   * @param string $replacement Замена
+   * @param string $haystack Строка на входе
+   * @return string Строка на выходе
+   */
+  function _mb_str_replace($needle, $replacement, $haystack) {
+    $needle_len = mb_strlen($needle);
+    $replacement_len = mb_strlen($replacement);
+    $pos = mb_strpos($haystack, $needle);
+    while ($pos !== false) {
+      $haystack = mb_substr($haystack, 0, $pos) . $replacement
+          . mb_substr($haystack, $pos + $needle_len);
+      $pos = mb_strpos($haystack, $needle, $pos + $replacement_len);
+    }
+    return $haystack;
+  }
+
+  /**
+   * Функция подъёма по директориям выше на заданное количество ступеней (слэшей). 
+   * Обрубает лишние низлежащие. Дефолтно 1 уровень.
+   * @param string $url Исходный URL
+   * @param int $level Уровень, на который надо подняться
+   * @return string Результирующий URL
+   */
+  function _dirUp($url, $level = 1) {
+    $i = 0;
+    do {
+      $pos = mb_strrpos($url, '/');
+      $url = mb_substr($url, 0, $pos);
+      $i++;
+    } while ($level > $i);
+    return $url;
+  }
+
+  /**
+   * Преобразование пути к файлу из викиформата в абсолютный стантдартный.
+   * @param string $filePath путь к файлу в Wiki формате
+   * @param string $namespace текущий namespace
+   * @param string $startDir Директория, от которой строить путь.
+   */
+  function _wikiPathFileToAbsolute($filePath, $namespace, $startDir) {
+    // From current level
+    if (preg_match('/^(((\.:{0,1}){0,1}(\w+\.*\-*)+)|\.(\:)?(\w+\-*\:*)+)\z/sm', $filePath)) {
+      $filePath = preg_replace('/^(\.)(\:)?((\w+\-*\:*)+\z)/sm', '$3', $filePath);
+      $filePath = preg_replace('/^((\.:{0,1}){0,1}((\w+\.*\-*)+)\z)/sm', '$3', $filePath);
+      $filePath = $this->_mb_str_replace(':', '/', $filePath); //путь к файлу (запись согласно namespaces) в пространстве имён
+      $filePath = $startDir . '/' . $namespace . '/' . $filePath;
+    }
+    // From root level
+    else if (preg_match('/^(\w+\-*\.*\:{0,5})+(\:+)(\w+\.*\-*\:{0,5})*\z|^(\:(\w+\.*\-*\:{0,5})*)\z/sm', $filePath)) {
+      $filePath = preg_replace('/^(\:*)((\w+\.*\-*\:{0,5})*\z)/sm', '$2', $filePath);
+      $filePath = $this->_mb_str_replace(':', '/', $filePath); //путь к файлу (запись согласно namespaces) в пространстве имён
+      $filePath = $startDir . '/' . '' . $filePath;
+    }
+    // From parent level
+    else if (preg_match('/^(\.:)?(\.\.):?(\w+\.*\-*\:{0,5})*\z/sm', $filePath)) {
+      $filePath = preg_replace('/^(\.:)?(\.\.):?((\w+\.*\-*\:{0,5})*\z)/sm', '$3', $filePath);
+      $filePath = $this->_mb_str_replace(':', '/', $filePath); //путь к файлу (запись согласно namespaces) в пространстве имён
+      if ($this->dirUp($namespace) != '')
+        $midSlash = '/';
+      $filePath = $startDir . '/' . $this->dirUp($namespace) . $midSlash . $filePath;
+    }
+    return $filePath;
+  }
+
 }
 
-/**
- * Аналог str_replace для мультибайтных строк
- * @param string $needle Вхождение
- * @param string $replacement Замена
- * @param string $haystack Строка на входе
- * @return string Строка на выходе
- */
-function mb_str_replace($needle, $replacement, $haystack) {
-  $needle_len = mb_strlen($needle);
-  $replacement_len = mb_strlen($replacement);
-  $pos = mb_strpos($haystack, $needle);
-  while ($pos !== false) {
-    $haystack = mb_substr($haystack, 0, $pos) . $replacement
-        . mb_substr($haystack, $pos + $needle_len);
-    $pos = mb_strpos($haystack, $needle, $pos + $replacement_len);
-  }
-  return $haystack;
-}
-
-/**
- * Renders the files as a table, including details if configured that way.
- *
- * @param $result the filelist to render
- * @param $params the parameters of the filelist call
- * @param $renderer the renderer to use
- * @return void
- */
-function _render_link($filename, $filepath, $basedir, $webdir, $params, &$renderer) {
-  global $conf;
-
-  //prepare for formating
-  $link['target'] = $conf['target']['extern'];
-  $link['style'] = '';
-  $link['pre'] = '';
-  $link['suf'] = '';
-  $link['more'] = '';
-  $link['class'] = 'media';
-  if (!$params['direct']) {
-    $link['url'] = ml(':' . $this->_convert_mediapath($filepath));
-  }
-  else {
-    $link['url'] = $webdir . substr($filepath, strlen($basedir));
-  }
-  $link['name'] = $filename;
-  $link['title'] = $renderer->_xmlEntities($link['url']);
-  if ($conf['relnofollow'])
-    $link['more'] .= ' rel="nofollow"';
-
-  list($ext, $mime) = mimetype(basename($filepath));
-  $link['class'] .= ' mediafile mf_' . $ext;
-
-  //output formatted
-  $renderer->doc .= $renderer->_formatLink($link);
-}
-
-// vim:ts=4:sw=4:et:
