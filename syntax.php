@@ -75,7 +75,7 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
       unset($tempData);
       unset($tempArray);
     }
-   return $data;
+    return $data;
   }
 
   /**
@@ -121,7 +121,7 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
     // we need to use a GeSHi wrapper to avoid <BR> throughout the highlighted text
     $code = trim(preg_replace('!^<pre[^>]*>|</pre>$!', '', $geshi->parse_code()), "\n\r");
     $code = $this->_mb_str_replace("&nbsp;\n", "", $code);
-    //var_dump($data);
+//    var_dump($data);
     $renderer->doc .= '<dt><a href=' . $link . ' title="Download bg" class="mediafile mf_' . $lang . '">' . $fileName . '</a></dt>';
     $renderer->doc .= '<dt>';
     $renderer->doc .= '<pre class="code">';
@@ -216,21 +216,21 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
    */
   function _wikiPathFileToAbsolute($filePath, $namespace, $startDir) {
     // From current level
-    if (preg_match('/^(((\.:{0,1}){0,1}(\w+\.*\-*)+)|\.(\:)?(\w+\-*\:*)+)\z/sm', $filePath)) {
+    if (preg_match('/^(((\.:{0,1}){0,1}(\w+\.*\-*)+)|\.(\:)?(\w+\-*\:*)+)\z/smu', $filePath)) {
       $filePath = preg_replace('/^(\.)(\:)?((\w+\-*\:*)+\z)/sm', '$3', $filePath);
-      $filePath = preg_replace('/^((\.:{0,1}){0,1}((\w+\.*\-*)+)\z)/sm', '$3', $filePath);
+      $filePath = preg_replace('/^((\.:{0,1}){0,1}((\w+\.*\-*)+)\z)/smu', '$3', $filePath);
       $filePath = $this->_mb_str_replace(':', '/', $filePath); //путь к файлу (запись согласно namespaces) в пространстве имён
       $filePath = $startDir . '/' . $namespace . '/' . $filePath;
     }
     // From root level
-    else if (preg_match('/^(\w+\-*\.*\:{0,5})+(\:+)(\w+\.*\-*\:{0,5})*\z|^(\:(\w+\.*\-*\:{0,5})*)\z/sm', $filePath)) {
-      $filePath = preg_replace('/^(\:*)((\w+\.*\-*\:{0,5})*\z)/sm', '$2', $filePath);
+    else if (preg_match('/^(\w+\-*\.*\:{0,5})+(\:+)(\w+\.*\-*\:{0,5})*\z|^(\:(\w+\.*\-*\:{0,5})*)\z/smu', $filePath)) {
+      $filePath = preg_replace('/^(\:*)((\w+\.*\-*\:{0,5})*\z)/smu', '$2', $filePath);
       $filePath = $this->_mb_str_replace(':', '/', $filePath); //путь к файлу (запись согласно namespaces) в пространстве имён
       $filePath = $startDir . '/' . '' . $filePath;
     }
     // From parent level
-    else if (preg_match('/^(\.:)?(\.\.):?(\w+\.*\-*\:{0,5})*\z/sm', $filePath)) {
-      $filePath = preg_replace('/^(\.:)?(\.\.):?((\w+\.*\-*\:{0,5})*\z)/sm', '$3', $filePath);
+    else if (preg_match('/^(\.:)?(\.\.):?(\w+\.*\-*\:{0,5})*\z/smu', $filePath)) {
+      $filePath = preg_replace('/^(\.:)?(\.\.):?((\w+\.*\-*\:{0,5})*\z)/smu', '$3', $filePath);
       $filePath = $this->_mb_str_replace(':', '/', $filePath); //путь к файлу (запись согласно namespaces) в пространстве имён
       if ($this->dirUp($namespace) != '')
         $midSlash = '/';
@@ -240,4 +240,3 @@ class syntax_plugin_src extends DokuWiki_Syntax_Plugin {
   }
 
 }
-
