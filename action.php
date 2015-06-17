@@ -39,7 +39,7 @@ class action_plugin_src extends DokuWiki_Action_Plugin {
             'title' => $this->getLang('embed_file'),
             'icon' => '../../plugins/src/img/src.png',
             'open' => '{{src ',
-            'close' => '}}',
+            'close' => '}}\n',
         );
     }
 
