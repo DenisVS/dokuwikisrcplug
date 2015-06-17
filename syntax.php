@@ -2,7 +2,7 @@
 
 /**
  * DokuWiki Plugin src (Syntax Component)
- *
+ * $Id:$
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  * @author  DenisVS <denisvs@gmail.com>
  */

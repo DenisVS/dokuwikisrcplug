@@ -4,4 +4,6 @@ email  denisvs@gmail.com
 date   2015-06-14
 name   src plugin
 desc   Includes a source uploaded file using the geshi highlighter
-url    https://www.dokuwiki.org
+url    https://www.dokuwiki.org/plugin:src
+id     $Id:$
+
