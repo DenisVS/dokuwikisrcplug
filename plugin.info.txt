@@ -3,5 +3,5 @@ author DenisVS
 email  denisvs@gmail.com
 date   2015-06-14
 name   src plugin
-desc   nhfnjfnjn jfnj fnj
-url    http://dfd.df
+desc   Includes a source uploaded file using the geshi highlighter
+url    https://www.dokuwiki.org
